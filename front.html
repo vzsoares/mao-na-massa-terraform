@@ -97,8 +97,11 @@
                     this.error = null;
                     
                     try {
-                        // Replace with your actual API endpoint
-                        const response = await fetch('/api/messages');
+                        // Use local API endpoint for development, production endpoint for deployment
+                        const apiUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+                            ? 'http://localhost:3001/api/messages'
+                            : '/api/messages';
+                        const response = await fetch(apiUrl);
                         
                         if (!response.ok) {
                             throw new Error(`Failed to fetch messages: ${response.status}`);
@@ -130,8 +133,11 @@
                     this.error = null;
                     
                     try {
-                        // Replace with your actual API endpoint
-                        const response = await fetch('/api/messages', {
+                        // Use local API endpoint for development, production endpoint for deployment
+                        const apiUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+                            ? 'http://localhost:3001/api/messages'
+                            : '/api/messages';
+                        const response = await fetch(apiUrl, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
