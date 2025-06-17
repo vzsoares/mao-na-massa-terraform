@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Message Mural</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Alpine.js CDN -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8" x-data="messageMural()">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">Message Mural</h1>
+            <p class="text-gray-600">Share your thoughts with the world</p>
+        </div>
+
+        <!-- Message Input Form -->
+        <div class="max-w-2xl mx-auto mb-8">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex gap-4">
+                    <input 
+                        type="text" 
+                        x-model="newMessage"
+                        @keyup.enter="postMessage()"
+                        placeholder="What's on your mind?"
+                        class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                    >
+                    <button 
+                        @click="postMessage()"
+                        :disabled="!newMessage.trim() || isLoading"
+                        class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                    >
+                        <span x-show="!isLoading">Post</span>
+                        <span x-show="isLoading">...</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div x-show="isLoading && messages.length === 0" class="text-center py-8">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+            <p class="text-gray-600 mt-4">Loading messages...</p>
+        </div>
+
+        <!-- Error State -->
+        <div x-show="error" class="max-w-2xl mx-auto mb-8">
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                <p x-text="error"></p>
+            </div>
+        </div>
+
+        <!-- Messages Grid -->
+        <div class="max-w-4xl mx-auto">
+            <template x-if="messages.length === 0 && !isLoading">
+                <div class="text-center py-12">
+                    <p class="text-gray-500 text-lg">No messages yet. Be the first to share!</p>
+                </div>
+            </template>
+
+            <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <template x-for="message in messages" :key="message.id">
+                    <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+                        <div class="flex items-start justify-between mb-3">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                                    <span class="text-white text-sm font-medium" x-text="(message.author || 'Anonymous').charAt(0).toUpperCase()"></span>
+                                </div>
+                                <span class="text-sm font-medium text-gray-800" x-text="message.author || 'Anonymous'"></span>
+                            </div>
+                            <span class="text-xs text-gray-500" x-text="formatDate(message.createdAt || message.timestamp)"></span>
+                        </div>
+                        <p class="text-gray-700 leading-relaxed" x-text="message.content || message.message"></p>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function messageMural() {
+            return {
+                messages: [],
+                newMessage: '',
+                isLoading: false,
+                error: null,
+                
+                init() {
+                    this.fetchMessages();
+                },
+
+                async fetchMessages() {
+                    this.isLoading = true;
+                    this.error = null;
+                    
+                    try {
+                        // Replace with your actual API endpoint
+                        const response = await fetch('/api/messages');
+                        
+                        if (!response.ok) {
+                            throw new Error(`Failed to fetch messages: ${response.status}`);
+                        }
+                        
+                        const data = await response.json();
+                        this.messages = Array.isArray(data) ? data : data.messages || [];
+                        
+                        // Sort messages by date (newest first)
+                        this.messages.sort((a, b) => {
+                            const dateA = new Date(a.createdAt || a.timestamp || 0);
+                            const dateB = new Date(b.createdAt || b.timestamp || 0);
+                            return dateB - dateA;
+                        });
+                        
+                    } catch (error) {
+                        console.error('Error fetching messages:', error);
+                        this.error = 'Failed to load messages. Please try again later.';
+                        this.messages = [];
+                    } finally {
+                        this.isLoading = false;
+                    }
+                },
+
+                async postMessage() {
+                    if (!this.newMessage.trim()) return;
+                    
+                    this.isLoading = true;
+                    this.error = null;
+                    
+                    try {
+                        // Replace with your actual API endpoint
+                        const response = await fetch('/api/messages', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                content: this.newMessage.trim(),
+                                author: 'Anonymous', // You can modify this to get user input
+                                timestamp: new Date().toISOString()
+                            })
+                        });
+                        
+                        if (!response.ok) {
+                            throw new Error(`Failed to post message: ${response.status}`);
+                        }
+                        
+                        const newMsg = await response.json();
+                        
+                        // Add the new message to the beginning of the array
+                        this.messages.unshift(newMsg);
+                        this.newMessage = '';
+                        
+                    } catch (error) {
+                        console.error('Error posting message:', error);
+                        this.error = 'Failed to post message. Please try again.';
+                    } finally {
+                        this.isLoading = false;
+                    }
+                },
+
+                formatDate(dateString) {
+                    if (!dateString) return 'Unknown';
+                    
+                    const date = new Date(dateString);
+                    const now = new Date();
+                    const diffInHours = (now - date) / (1000 * 60 * 60);
+                    
+                    if (diffInHours < 1) {
+                        const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+                        return `${diffInMinutes}m ago`;
+                    } else if (diffInHours < 24) {
+                        return `${Math.floor(diffInHours)}h ago`;
+                    } else {
+                        return date.toLocaleDateString();
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
+
